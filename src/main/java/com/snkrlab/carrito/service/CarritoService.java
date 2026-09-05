@@ -21,7 +21,7 @@ public class CarritoService {
         this.productoClient = productoClient;
     }
 
-    public List<ItemCarrito> obtenerPorUsuario(Long usuarioId) {
+    public List<ItemCarrito> obtenerPorUsuario(String usuarioId) {
         return itemCarritoRepository.findByUsuarioId(usuarioId);
     }
 
@@ -47,7 +47,7 @@ public class CarritoService {
     }
 
     @Transactional
-    public void vaciarCarrito(Long usuarioId) {
+    public void vaciarCarrito(String usuarioId) {
         itemCarritoRepository.deleteByUsuarioId(usuarioId);
     }
 }

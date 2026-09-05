@@ -19,7 +19,7 @@ public class CarritoController {
     }
 
     @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<List<ItemCarrito>> obtenerPorUsuario(@PathVariable Long usuarioId) {
+    public ResponseEntity<List<ItemCarrito>> obtenerPorUsuario(@PathVariable String usuarioId) {
         return ResponseEntity.ok(carritoService.obtenerPorUsuario(usuarioId));
     }
 
@@ -43,7 +43,7 @@ public class CarritoController {
     }
 
     @DeleteMapping("/usuario/{usuarioId}")
-    public ResponseEntity<Void> vaciarCarrito(@PathVariable Long usuarioId) {
+    public ResponseEntity<Void> vaciarCarrito(@PathVariable String usuarioId) {
         carritoService.vaciarCarrito(usuarioId);
         return ResponseEntity.noContent().build();
     }

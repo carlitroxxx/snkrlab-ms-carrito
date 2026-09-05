@@ -12,9 +12,9 @@ import lombok.*;
 public class ItemCarrito {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
     @Column(nullable = false)
-    private Long usuarioId;
+    private String usuarioId;
     @Column(nullable = false)
     private Long productoId;
     @Column(nullable = false)
