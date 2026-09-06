@@ -34,16 +34,19 @@ public class CarritoService {
         return itemCarritoRepository.save(item);
     }
 
-    public Optional<ItemCarrito> actualizarItem(Long id, ItemCarrito itemDetalles) {
+    public Optional<ItemCarrito> actualizarItem(String usuarioId, Long id, ItemCarrito itemDetalles) {
         return itemCarritoRepository.findById(id)
+                .filter(itemExistente -> itemExistente.getUsuarioId().equals(usuarioId))
                 .map(itemExistente -> {
                     itemExistente.setCantidad(itemDetalles.getCantidad());
                     return itemCarritoRepository.save(itemExistente);
                 });
     }
 
-    public void eliminarItem(Long id) {
-        itemCarritoRepository.deleteById(id);
+    public void eliminarItem(String usuarioId, Long id) {
+        itemCarritoRepository.findById(id)
+                .filter(item -> item.getUsuarioId().equals(usuarioId))
+                .ifPresent(itemCarritoRepository::delete);
     }
 
     @Transactional

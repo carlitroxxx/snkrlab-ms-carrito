@@ -4,6 +4,8 @@ import com.snkrlab.carrito.model.ItemCarrito;
 import com.snkrlab.carrito.service.CarritoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,33 +20,41 @@ public class CarritoController {
         this.carritoService = carritoService;
     }
 
-    @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<List<ItemCarrito>> obtenerPorUsuario(@PathVariable String usuarioId) {
-        return ResponseEntity.ok(carritoService.obtenerPorUsuario(usuarioId));
+    private String usuarioIdDesde(Jwt jwt) {
+        return jwt.getClaimAsString("oid");
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ItemCarrito>> obtenerMiCarrito(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(carritoService.obtenerPorUsuario(usuarioIdDesde(jwt)));
     }
 
     @PostMapping
-    public ResponseEntity<ItemCarrito> agregarItem(@RequestBody ItemCarrito item) {
+    public ResponseEntity<ItemCarrito> agregarItem(@AuthenticationPrincipal Jwt jwt,
+                                                   @RequestBody ItemCarrito item) {
+        item.setUsuarioId(usuarioIdDesde(jwt));
         ItemCarrito nuevoItem = carritoService.agregarItem(item);
         return ResponseEntity.status(HttpStatus.CREATED).body(nuevoItem);
     }
 
     @PutMapping("/item/{id}")
-    public ResponseEntity<ItemCarrito> actualizarItem(@PathVariable Long id, @RequestBody ItemCarrito item) {
-        return carritoService.actualizarItem(id, item)
+    public ResponseEntity<ItemCarrito> actualizarItem(@AuthenticationPrincipal Jwt jwt,
+                                                      @PathVariable Long id,
+                                                      @RequestBody ItemCarrito item) {
+        return carritoService.actualizarItem(usuarioIdDesde(jwt), id, item)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/item/{id}")
-    public ResponseEntity<Void> eliminarItem(@PathVariable Long id) {
-        carritoService.eliminarItem(id);
+    public ResponseEntity<Void> eliminarItem(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        carritoService.eliminarItem(usuarioIdDesde(jwt), id);
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/usuario/{usuarioId}")
-    public ResponseEntity<Void> vaciarCarrito(@PathVariable String usuarioId) {
-        carritoService.vaciarCarrito(usuarioId);
+    @DeleteMapping
+    public ResponseEntity<Void> vaciarCarrito(@AuthenticationPrincipal Jwt jwt) {
+        carritoService.vaciarCarrito(usuarioIdDesde(jwt));
         return ResponseEntity.noContent().build();
     }
 }
