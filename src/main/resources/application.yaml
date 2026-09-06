@@ -16,3 +16,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AZURE_ISSUER_URI:https://login.microsoftonline.com/}
+          tenant-id: ${AZURE_TENANT_ID:db9d1cc0-8c32-4341-bc72-c348daf096fb}
