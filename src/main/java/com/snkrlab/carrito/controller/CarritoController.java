@@ -1,5 +1,6 @@
 package com.snkrlab.carrito.controller;
 
+import com.snkrlab.carrito.dto.CheckoutDTO;
 import com.snkrlab.carrito.model.ItemCarrito;
 import com.snkrlab.carrito.service.CarritoService;
 import org.springframework.http.HttpStatus;
@@ -56,5 +57,10 @@ public class CarritoController {
     public ResponseEntity<Void> vaciarCarrito(@AuthenticationPrincipal Jwt jwt) {
         carritoService.vaciarCarrito(usuarioIdDesde(jwt));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/checkout")
+    public ResponseEntity<CheckoutDTO> checkout(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(carritoService.confirmarCompra(usuarioIdDesde(jwt)));
     }
 }

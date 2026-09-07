@@ -1,6 +1,7 @@
 package com.snkrlab.carrito.service;
 
 import com.snkrlab.carrito.client.ProductoClient;
+import com.snkrlab.carrito.dto.CheckoutDTO;
 import com.snkrlab.carrito.dto.ProductoDTO;
 import com.snkrlab.carrito.model.ItemCarrito;
 import com.snkrlab.carrito.repository.ItemCarritoRepository;
@@ -52,5 +53,25 @@ public class CarritoService {
     @Transactional
     public void vaciarCarrito(String usuarioId) {
         itemCarritoRepository.deleteByUsuarioId(usuarioId);
+    }
+
+    @Transactional
+    public CheckoutDTO confirmarCompra(String usuarioId) {
+        List<ItemCarrito> items = itemCarritoRepository.findByUsuarioId(usuarioId);
+
+        if (items.isEmpty()) {
+            throw new IllegalStateException("El carrito esta vacio, no hay nada que confirmar.");
+        }
+
+        int total = items.stream()
+                .mapToInt(i -> i.getPrecioUnitario() * i.getCantidad())
+                .sum();
+        int cantidadItems = items.size();
+
+        itemCarritoRepository.deleteByUsuarioId(usuarioId);
+
+        CheckoutDTO checkout = new CheckoutDTO("Compra confirmada (simulada, sin pago real).", cantidadItems, total);
+
+        return checkout;
     }
 }
