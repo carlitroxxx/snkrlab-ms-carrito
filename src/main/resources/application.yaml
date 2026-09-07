@@ -1,6 +1,7 @@
 server:
   port: 8083
-
+  servlet:
+    context-path: /desarrollo
 spring:
   application:
     name: snkrlab-ms-carrito
