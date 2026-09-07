@@ -63,6 +63,21 @@ public class CarritoService {
             throw new IllegalStateException("El carrito esta vacio, no hay nada que confirmar.");
         }
 
+        for (ItemCarrito item : items) {
+            ProductoDTO producto = productoClient.obtenerProductoPorId(item.getProductoId());
+            if (producto == null) {
+                throw new IllegalArgumentException("El producto " + item.getProductoId() + " ya no existe en el catalogo.");
+            }
+            if (producto.getStock() < item.getCantidad()) {
+                throw new IllegalStateException("Stock insuficiente para " + producto.getNombre()
+                        + ". Disponible: " + producto.getStock() + ", en el carrito: " + item.getCantidad());
+            }
+        }
+
+        for (ItemCarrito item : items) {
+            productoClient.reducirStock(item.getProductoId(), item.getCantidad());
+        }
+
         int total = items.stream()
                 .mapToInt(i -> i.getPrecioUnitario() * i.getCantidad())
                 .sum();
@@ -70,8 +85,6 @@ public class CarritoService {
 
         itemCarritoRepository.deleteByUsuarioId(usuarioId);
 
-        CheckoutDTO checkout = new CheckoutDTO("Compra confirmada (simulada, sin pago real).", cantidadItems, total);
-
-        return checkout;
+        return new CheckoutDTO("Compra confirmada (simulada, sin pago real).", cantidadItems, total);
     }
 }
