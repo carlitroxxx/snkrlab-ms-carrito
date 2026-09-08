@@ -54,6 +54,16 @@ public class CarritoService {
         if (producto == null) {
             throw new IllegalArgumentException("El producto no existe en el catálogo.");
         }
+
+        Optional<ItemCarrito> itemExistente = itemCarritoRepository.findByUsuarioIdAndProductoId(
+                item.getUsuarioId(), item.getProductoId());
+
+        if (itemExistente.isPresent()) {
+            ItemCarrito item2 = itemExistente.get();
+            item2.setCantidad(item2.getCantidad() + item.getCantidad());
+            return itemCarritoRepository.save(item2);
+        }
+
         item.setPrecioUnitario(producto.getPrecio());
         return itemCarritoRepository.save(item);
     }
