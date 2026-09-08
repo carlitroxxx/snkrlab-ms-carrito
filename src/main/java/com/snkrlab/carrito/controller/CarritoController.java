@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
+import com.snkrlab.carrito.dto.ItemCarritoDTO;
 import java.util.List;
 
 @RestController
@@ -26,8 +26,8 @@ public class CarritoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ItemCarrito>> obtenerMiCarrito(@AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(carritoService.obtenerPorUsuario(usuarioIdDesde(jwt)));
+    public ResponseEntity<List<ItemCarritoDTO>> obtenerMiCarrito(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(carritoService.obtenerPorUsuarioConDetalle(usuarioIdDesde(jwt)));
     }
 
     @PostMapping

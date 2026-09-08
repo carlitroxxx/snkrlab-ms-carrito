@@ -7,9 +7,12 @@ import com.snkrlab.carrito.model.ItemCarrito;
 import com.snkrlab.carrito.repository.ItemCarritoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Optional;
+import com.snkrlab.carrito.dto.DetalleCompraDTO;
+import com.snkrlab.carrito.dto.ItemCarritoDTO;
+import java.util.ArrayList;
+
 
 @Service
 public class CarritoService {
@@ -25,7 +28,27 @@ public class CarritoService {
     public List<ItemCarrito> obtenerPorUsuario(String usuarioId) {
         return itemCarritoRepository.findByUsuarioId(usuarioId);
     }
+    public List<ItemCarritoDTO> obtenerPorUsuarioConDetalle(String usuarioId) {
+        List<ItemCarrito> items = itemCarritoRepository.findByUsuarioId(usuarioId);
+        List<ItemCarritoDTO> resultado = new ArrayList<>();
 
+        for (ItemCarrito item : items) {
+            ProductoDTO producto = productoClient.obtenerProductoPorId(item.getProductoId());
+            String nombre = producto != null ? producto.getNombre() : "Producto no disponible";
+            int subtotal = item.getPrecioUnitario() * item.getCantidad();
+
+            resultado.add(new ItemCarritoDTO(
+                    item.getId(),
+                    item.getProductoId(),
+                    nombre,
+                    item.getCantidad(),
+                    item.getPrecioUnitario(),
+                    subtotal
+            ));
+        }
+
+        return resultado;
+    }
     public ItemCarrito agregarItem(ItemCarrito item) {
         ProductoDTO producto = productoClient.obtenerProductoPorId(item.getProductoId());
         if (producto == null) {
@@ -63,6 +86,8 @@ public class CarritoService {
             throw new IllegalStateException("El carrito esta vacio, no hay nada que confirmar.");
         }
 
+        List<DetalleCompraDTO> detalle = new ArrayList<>();
+
         for (ItemCarrito item : items) {
             ProductoDTO producto = productoClient.obtenerProductoPorId(item.getProductoId());
             if (producto == null) {
@@ -72,6 +97,14 @@ public class CarritoService {
                 throw new IllegalStateException("Stock insuficiente para " + producto.getNombre()
                         + ". Disponible: " + producto.getStock() + ", en el carrito: " + item.getCantidad());
             }
+            int subtotal = item.getPrecioUnitario() * item.getCantidad();
+            detalle.add(new DetalleCompraDTO(
+                    item.getProductoId(),
+                    producto.getNombre(),
+                    item.getCantidad(),
+                    item.getPrecioUnitario(),
+                    subtotal
+            ));
         }
 
         for (ItemCarrito item : items) {
@@ -85,6 +118,7 @@ public class CarritoService {
 
         itemCarritoRepository.deleteByUsuarioId(usuarioId);
 
-        return new CheckoutDTO("Compra confirmada (simulada, sin pago real).", cantidadItems, total);
+        return new CheckoutDTO("Compra confirmada (simulada, sin pago real).", cantidadItems, total, detalle);
     }
+
 }
