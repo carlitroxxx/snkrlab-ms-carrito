@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.*;
 )
 public interface ProductoClient {
 
-    @GetMapping("/desarrollo/api/v1/productos/{id}")
+    @GetMapping("/api/v1/productos/{id}")
     ProductoDTO obtenerProductoPorId(@PathVariable("id") Long id);
 
-    @PutMapping("/desarrollo/api/v1/productos/{id}/stock")
+    @PutMapping("/api/v1/productos/{id}/stock")
     ProductoDTO reducirStock(@PathVariable("id") Long id, @RequestParam("cantidad") Integer cantidad);
 }
