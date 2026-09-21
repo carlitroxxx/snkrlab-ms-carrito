@@ -4,7 +4,10 @@ import com.snkrlab.carrito.client.ProductoClient;
 import com.snkrlab.carrito.dto.CheckoutDTO;
 import com.snkrlab.carrito.dto.ProductoDTO;
 import com.snkrlab.carrito.model.ItemCarrito;
+import com.snkrlab.carrito.rabbitmq.RabbitMQConfig;
+import com.snkrlab.carrito.rabbitmq.StockReducidoMessage;
 import com.snkrlab.carrito.repository.ItemCarritoRepository;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -19,10 +22,12 @@ public class CarritoService {
 
     private final ItemCarritoRepository itemCarritoRepository;
     private final ProductoClient productoClient;
+    private final RabbitTemplate rabbitTemplate;
 
-    public CarritoService(ItemCarritoRepository itemCarritoRepository, ProductoClient productoClient) {
+    public CarritoService(ItemCarritoRepository itemCarritoRepository, ProductoClient productoClient, RabbitTemplate rabbitTemplate) {
         this.itemCarritoRepository = itemCarritoRepository;
         this.productoClient = productoClient;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public List<ItemCarrito> obtenerPorUsuario(String usuarioId) {
@@ -33,8 +38,9 @@ public class CarritoService {
         List<ItemCarritoDTO> resultado = new ArrayList<>();
 
         for (ItemCarrito item : items) {
-            ProductoDTO producto = productoClient.obtenerProductoPorId(item.getProductoId());
-            String nombre = producto != null ? producto.getNombre() : "Producto no disponible";
+            String nombre = item.getNombreProducto() != null
+                    ? item.getNombreProducto()
+                    : "Producto #" + item.getProductoId();
             int subtotal = item.getPrecioUnitario() * item.getCantidad();
 
             resultado.add(new ItemCarritoDTO(
@@ -60,11 +66,16 @@ public class CarritoService {
 
         if (itemExistente.isPresent()) {
             ItemCarrito item2 = itemExistente.get();
+
             item2.setCantidad(item2.getCantidad() + item.getCantidad());
+            item2.setNombreProducto(producto.getNombre());
+
             return itemCarritoRepository.save(item2);
         }
 
+        item.setNombreProducto(producto.getNombre());
         item.setPrecioUnitario(producto.getPrecio());
+
         return itemCarritoRepository.save(item);
     }
 
@@ -90,27 +101,29 @@ public class CarritoService {
 
     @Transactional
     public CheckoutDTO confirmarCompra(String usuarioId) {
-        List<ItemCarrito> items = itemCarritoRepository.findByUsuarioId(usuarioId);
+        List<ItemCarrito> items =
+                itemCarritoRepository.findByUsuarioId(usuarioId);
 
         if (items.isEmpty()) {
-            throw new IllegalStateException("El carrito esta vacio, no hay nada que confirmar.");
+            throw new IllegalStateException(
+                    "El carrito está vacío, no hay nada que confirmar."
+            );
         }
 
         List<DetalleCompraDTO> detalle = new ArrayList<>();
+        int total = 0;
 
         for (ItemCarrito item : items) {
-            ProductoDTO producto = productoClient.obtenerProductoPorId(item.getProductoId());
-            if (producto == null) {
-                throw new IllegalArgumentException("El producto " + item.getProductoId() + " ya no existe en el catalogo.");
-            }
-            if (producto.getStock() < item.getCantidad()) {
-                throw new IllegalStateException("Stock insuficiente para " + producto.getNombre()
-                        + ". Disponible: " + producto.getStock() + ", en el carrito: " + item.getCantidad());
-            }
             int subtotal = item.getPrecioUnitario() * item.getCantidad();
+            total += subtotal;
+
+            String nombre = item.getNombreProducto() != null
+                    ? item.getNombreProducto()
+                    : "Producto #" + item.getProductoId();
+
             detalle.add(new DetalleCompraDTO(
                     item.getProductoId(),
-                    producto.getNombre(),
+                    nombre,
                     item.getCantidad(),
                     item.getPrecioUnitario(),
                     subtotal
@@ -118,17 +131,26 @@ public class CarritoService {
         }
 
         for (ItemCarrito item : items) {
-            productoClient.reducirStock(item.getProductoId(), item.getCantidad());
-        }
+            StockReducidoMessage mensaje = new StockReducidoMessage(
+                    item.getProductoId(),
+                    item.getCantidad()
+            );
 
-        int total = items.stream()
-                .mapToInt(i -> i.getPrecioUnitario() * i.getCantidad())
-                .sum();
-        int cantidadItems = items.size();
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.EXCHANGE,
+                    RabbitMQConfig.ROUTING_KEY,
+                    mensaje
+            );
+        }
 
         itemCarritoRepository.deleteByUsuarioId(usuarioId);
 
-        return new CheckoutDTO("Compra confirmada (simulada, sin pago real).", cantidadItems, total, detalle);
+        return new CheckoutDTO(
+                "Solicitud enviada para procesar el stock.",
+                items.size(),
+                total,
+                detalle
+        );
     }
 
 }

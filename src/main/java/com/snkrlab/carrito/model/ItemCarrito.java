@@ -18,6 +18,8 @@ public class ItemCarrito {
     @Column(nullable = false)
     private Long productoId;
     @Column(nullable = false)
+    private String nombreProducto;
+    @Column(nullable = false)
     private Integer cantidad;
     @Column(nullable = false)
     private Integer precioUnitario;
