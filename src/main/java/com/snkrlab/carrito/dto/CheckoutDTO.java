@@ -10,8 +10,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CheckoutDTO {
+
     private String mensaje;
     private int cantidadItems;
     private int total;
     private List<DetalleCompraDTO> items;
+    private Long ordenId;
 }

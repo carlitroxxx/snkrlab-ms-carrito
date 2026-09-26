@@ -15,7 +15,11 @@ import java.util.Optional;
 import com.snkrlab.carrito.dto.DetalleCompraDTO;
 import com.snkrlab.carrito.dto.ItemCarritoDTO;
 import java.util.ArrayList;
-
+import com.snkrlab.carrito.client.OrdenClient;
+import feign.FeignException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class CarritoService {
@@ -23,11 +27,15 @@ public class CarritoService {
     private final ItemCarritoRepository itemCarritoRepository;
     private final ProductoClient productoClient;
     private final RabbitTemplate rabbitTemplate;
+    private final OrdenClient ordenClient;
 
-    public CarritoService(ItemCarritoRepository itemCarritoRepository, ProductoClient productoClient, RabbitTemplate rabbitTemplate) {
+    @Value("${ORDENES_INTERNAL_KEY:snkrlab-local-ordenes}")
+    private String claveOrdenes;
+    public CarritoService(ItemCarritoRepository itemCarritoRepository, ProductoClient productoClient, RabbitTemplate rabbitTemplate, OrdenClient ordenClient) {
         this.itemCarritoRepository = itemCarritoRepository;
         this.productoClient = productoClient;
         this.rabbitTemplate = rabbitTemplate;
+        this.ordenClient = ordenClient;
     }
 
     public List<ItemCarrito> obtenerPorUsuario(String usuarioId) {
@@ -105,8 +113,9 @@ public class CarritoService {
                 itemCarritoRepository.findByUsuarioId(usuarioId);
 
         if (items.isEmpty()) {
-            throw new IllegalStateException(
-                    "El carrito está vacío, no hay nada que confirmar."
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El carrito está vacío."
             );
         }
 
@@ -114,8 +123,32 @@ public class CarritoService {
         int total = 0;
 
         for (ItemCarrito item : items) {
-            int subtotal = item.getPrecioUnitario() * item.getCantidad();
-            total += subtotal;
+            if (item.getCantidad() == null
+                    || item.getCantidad() <= 0
+                    || item.getPrecioUnitario() == null
+                    || item.getPrecioUnitario() < 0) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El carrito contiene cantidades o precios inválidos."
+                );
+            }
+
+            int subtotal;
+
+            try {
+                subtotal = Math.multiplyExact(
+                        item.getPrecioUnitario(),
+                        item.getCantidad()
+                );
+
+                total = Math.addExact(total, subtotal);
+            } catch (ArithmeticException e) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El total supera el rango permitido."
+                );
+            }
 
             String nombre = item.getNombreProducto() != null
                     ? item.getNombreProducto()
@@ -130,6 +163,29 @@ public class CarritoService {
             ));
         }
 
+        // Primero se guarda la orden con los datos del carrito.
+        Long ordenId;
+
+        try {
+            ordenId = ordenClient.registrarOrden(claveOrdenes, detalle);
+        } catch (FeignException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "No se pudo confirmar el registro de la orden. "
+                            + "El carrito se conserva.",
+                    e
+            );
+        }
+
+        if (ordenId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Órdenes no devolvió el identificador."
+            );
+        }
+
+        // El descuento se sigue publicando desde Carrito,
+        // en este mismo checkout, como lo tienes actualmente.
         for (ItemCarrito item : items) {
             StockReducidoMessage mensaje = new StockReducidoMessage(
                     item.getProductoId(),
@@ -146,10 +202,11 @@ public class CarritoService {
         itemCarritoRepository.deleteByUsuarioId(usuarioId);
 
         return new CheckoutDTO(
-                "Solicitud enviada para procesar el stock.",
+                "Orden registrada. Solicitud de descuento de stock enviada.",
                 items.size(),
                 total,
-                detalle
+                detalle,
+                ordenId
         );
     }
 
