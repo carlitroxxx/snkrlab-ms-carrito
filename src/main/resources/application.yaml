@@ -29,3 +29,9 @@ spring:
         jwt:
           issuer-uri: ${AZURE_ISSUER_URI:https://login.microsoftonline.com/}
           tenant-id: ${AZURE_TENANT_ID:db9d1cc0-8c32-4341-bc72-c348daf096fb}
+
+app:
+  seguridad:
+    azure-client-id: ${AZURE_CLIENT_ID:706b4543-805e-4c53-8da4-aaf4ff4a4706}
+    cognito-issuer: ${COGNITO_ISSUER:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_KTqPu7kft}
+    cognito-client-id: ${COGNITO_CLIENT_ID:1jpasvcj1ms4c2028sm3snkqvd}
